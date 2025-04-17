@@ -27,6 +27,9 @@ jobs:
     - name: Test with Go
       run: go test -json > TestResults-${{ matrix.go-version }}.json
 
+    - name: Go Unit Test Coverage Report
+      uses: fgrosse/go-coverage-report@v1.2.0
+
     - name: Upload Go test results
       uses: actions/upload-artifact@v4
       with:
