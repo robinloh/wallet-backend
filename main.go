@@ -9,5 +9,5 @@ func main() {
 		return c.SendString("Hello World!")
 	})
 
-	app.Listen(":8080")
+	_ = app.Listen(":8080")
 }
