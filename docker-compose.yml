@@ -1,0 +1,10 @@
+services:
+  wallet-backend:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/wallet-backend
+    command: air main.go -b 0.0.0.0

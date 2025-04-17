@@ -1,0 +1,20 @@
+language: go
+go:
+  - “1.24.2”
+jobs:
+  include:
+    - stage: CI
+      name: “Package & build”
+      script:
+        - go build .
+    - name: “Run vet”
+      script:
+        - go vet .
+    - name: “Run Linting”
+      install:
+        - go get -u golang.org/x/lint/golint
+      script:
+        - golint .
+    - name: “Unit Tests”
+      script:
+        - cd test && go test -v
