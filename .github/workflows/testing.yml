@@ -7,7 +7,7 @@ on: [push]
 
 jobs:
 
-  build:
+  unit_tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,19 +25,24 @@ jobs:
       run: go get .
 
     - name: Test with Go
-      run: go test -json > TestResults-${{ matrix.go-version }}.json
-
-    - name: Go Unit Test Coverage Report
-      run: go tool cover -html=coverage.out -o coverage.html > TestCoverage-${{ matrix.go-version }}.html
+      run: go test -cover -coverprofile=TestResults-${{ matrix.go-version }}.txt ./...
 
     - name: Upload Go test results
       uses: actions/upload-artifact@v4
       with:
         name: Go-results-${{ matrix.go-version }}
-        path: TestResults-${{ matrix.go-version }}.json
+        path: TestResults-${{ matrix.go-version }}.txt
 
-    - name: Upload Go test coverage results
-      uses: actions/upload-artifact@v4
-      with:
-        name: Go-results-${{ matrix.go-version }}
-        path: TestCoverage-${{ matrix.go-version }}.html
+  code_coverage:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: fgrosse/go-coverage-report@v1.2.0
+        with:
+          coverage-artifact-name: TestCoverage-${{ matrix.go-version }}
+          coverage-file-name: TestCoverage-${{ matrix.go-version }}.txt
