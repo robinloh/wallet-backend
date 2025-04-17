@@ -28,10 +28,16 @@ jobs:
       run: go test -json > TestResults-${{ matrix.go-version }}.json
 
     - name: Go Unit Test Coverage Report
-      uses: fgrosse/go-coverage-report@v1.2.0
+      run: go tool cover -html=coverage.out -o coverage.html > TestCoverage-${{ matrix.go-version }}.html
 
     - name: Upload Go test results
       uses: actions/upload-artifact@v4
       with:
         name: Go-results-${{ matrix.go-version }}
         path: TestResults-${{ matrix.go-version }}.json
+
+    - name: Upload Go test coverage results
+      uses: actions/upload-artifact@v4
+      with:
+        name: Go-results-${{ matrix.go-version }}
+        path: TestCoverage-${{ matrix.go-version }}.html
