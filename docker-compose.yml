@@ -36,9 +36,8 @@ services:
       - GOOSE_DRIVER=postgres
       - GOOSE_DBSTRING=host=${POSTGRES_HOST} port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB}
       - GOOSE_VERBOSE=true
-      - GOOSE_COMMAND=up-to
-      - GOOSE_COMMAND_ARG=${GOOSE_COMMAND_ARG}
-      - GOOSE_MIGRATION_DIR=./database/migrations
+      - GOOSE_COMMAND=up
+      - GOOSE_MIGRATION_DIR=./migrations
     volumes:
       - ./migrations:/migrations
 volumes:

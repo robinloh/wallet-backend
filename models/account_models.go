@@ -1,9 +1,6 @@
 package models
 
-import "gorm.io/gorm"
-
 type Account struct {
-	gorm.Model
 	AccountID string `json:"account_id" gorm:"primaryKey"`
 }
 
