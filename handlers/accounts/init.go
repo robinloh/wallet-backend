@@ -3,9 +3,8 @@ package accounts
 import (
 	"log/slog"
 
-	"gorm.io/gorm"
-
 	"github.com/gofiber/fiber/v2"
+	"github.com/robinloh/wallet-backend/database"
 )
 
 type APIs interface {
@@ -14,10 +13,10 @@ type APIs interface {
 
 type accountsHandler struct {
 	logger     *slog.Logger
-	postgresDB *gorm.DB
+	postgresDB *database.Postgres
 }
 
-func Initialize(logger *slog.Logger, postgresDB *gorm.DB) APIs {
+func Initialize(logger *slog.Logger, postgresDB *database.Postgres) APIs {
 	accountsHandler := &accountsHandler{
 		logger:     logger,
 		postgresDB: postgresDB,

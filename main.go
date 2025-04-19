@@ -12,7 +12,9 @@ import (
 func main() {
 	app := fiber.New()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
 	db := database.ConnectDb()
+	defer db.CloseDbConnection()
 
 	accountsHandler := accounts.Initialize(logger, db)
 

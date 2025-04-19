@@ -9,6 +9,7 @@ func NewError(ctx *fiber.Ctx, errStatus int, errMsgs ...int) error {
 		Status(errStatus).
 		JSON(fiber.Map{
 			"success": false,
+			"error":   errStatus,
 			"message": errMsgs,
 		})
 }
