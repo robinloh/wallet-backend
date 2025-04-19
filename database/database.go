@@ -38,7 +38,6 @@ func ConnectDb() *gorm.DB {
 	err = db.AutoMigrate(&models.Account{})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to automigrate in database. %v", err))
-		return nil
 	}
 
 	return db
