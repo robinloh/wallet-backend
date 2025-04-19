@@ -1,13 +1,22 @@
 package main
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"log/slog"
+	"os"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/robinloh/wallet-backend/database"
+	"github.com/robinloh/wallet-backend/handlers/accounts"
+)
 
 func main() {
 	app := fiber.New()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	db := database.ConnectDb()
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello World!")
-	})
+	accountsHandler := accounts.Initialize(logger, db)
+
+	app.Post("v1/accounts", accountsHandler.CreateAccounts)
 
 	_ = app.Listen(":8080")
 }

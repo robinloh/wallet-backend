@@ -1,6 +1,8 @@
 services:
   wallet-backend:
     build: .
+    depends_on:
+      - postgres
     env_file:
       - .env
     ports:
@@ -8,3 +10,36 @@ services:
     volumes:
       - .:/wallet-backend
     command: air main.go -b 0.0.0.0
+  postgres:
+    image: postgres:alpine
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'" ]
+      interval: 10s
+      timeout: 1s
+      retries: 5
+  migrations:
+    image: ghcr.io/kukymbr/goose-docker:${GOOSE_DOCKER_TAG}
+    restart: no
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - GOOSE_DRIVER=postgres
+      - GOOSE_DBSTRING=host=${POSTGRES_HOST} port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB}
+      - GOOSE_VERBOSE=true
+      - GOOSE_COMMAND=up-to
+      - GOOSE_COMMAND_ARG=${GOOSE_COMMAND_ARG}
+      - GOOSE_MIGRATION_DIR=./database/migrations
+    volumes:
+      - ./migrations:/migrations
+volumes:
+  postgres-db:
