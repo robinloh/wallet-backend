@@ -5,6 +5,6 @@ type AccountRequest struct {
 }
 
 type AccountResponse struct {
-	AccountID string `json:"account_id"`
-	Balance   string `json:"balance"`
+	ID      string `json:"id"`
+	Balance string `json:"balance"`
 }

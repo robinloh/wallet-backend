@@ -56,8 +56,8 @@ func (a *accountsHandler) handleCreateAccounts(accReq *models.AccountRequest) ([
 	for i := 0; i < accReq.Count; i++ {
 		accountID, _ := uuid.NewUUID()
 		args := pgx.NamedArgs{
-			"accountid": accountID.String(),
-			"balance":   0.00,
+			"id":      accountID.String(),
+			"balance": 0.00,
 		}
 		argsList = append(argsList, args)
 		batch.Queue(database.INSERT_ACCOUNTS_QUERY, args)
