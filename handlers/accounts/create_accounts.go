@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
@@ -13,7 +14,7 @@ func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
 	accounts := new([]*models.Account)
 
 	if err := ctx.BodyParser(accounts); err != nil {
-		a.logger.Error("[CreateAccounts] error parsing request body : %v", err)
+		a.logger.Error(fmt.Sprintf("[CreateAccounts] error parsing request body : %v", err))
 		return commons.NewError(ctx, fiber.StatusInternalServerError)
 
 	}
@@ -48,10 +49,10 @@ func (a *accountsHandler) handleCreateAccounts(accounts *[]*models.Account) erro
 	)
 
 	if err != nil {
-		a.logger.Error("[handleCreateAccounts] error copying rows: %v", err)
+		a.logger.Error(fmt.Sprintf("[handleCreateAccounts] error copying rows: %v", err))
 		return err
 	}
 
-	a.logger.Info("[handleCreateAccounts] successful created accounts: %#v", entries)
+	a.logger.Info(fmt.Sprintf("[handleCreateAccounts] successful created accounts: %#v", entries))
 	return nil
 }
