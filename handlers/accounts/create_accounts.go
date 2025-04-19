@@ -83,5 +83,7 @@ func (a *accountsHandler) handleCreateAccounts(accReq *models.AccountRequest) ([
 		}
 	}
 
+	a.logger.Info(fmt.Sprintf("[handleCreateAccounts] successfully created . %+v", argsList))
+
 	return argsList, results.Close()
 }
