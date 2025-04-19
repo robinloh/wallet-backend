@@ -19,6 +19,7 @@ func main() {
 	accountsHandler := accounts.Initialize(logger, db)
 
 	app.Post("v1/accounts", accountsHandler.CreateAccounts)
+	app.Get("v1/accounts/:id", accountsHandler.GetAccountBalance)
 
 	_ = app.Listen(":8080")
 }
