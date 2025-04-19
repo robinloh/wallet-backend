@@ -2,24 +2,26 @@ package accounts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/robinloh/wallet-backend/commons"
+	"github.com/robinloh/wallet-backend/database"
 	"github.com/robinloh/wallet-backend/models"
 )
 
 func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
-	accounts := new([]*models.Account)
-
-	if err := ctx.BodyParser(accounts); err != nil {
-		a.logger.Error(fmt.Sprintf("[CreateAccounts] error parsing request body : %v", err))
-		return commons.NewError(ctx, fiber.StatusInternalServerError)
-
+	accReq, err := a.validateRequest(ctx)
+	if err != nil {
+		return err
 	}
 
-	err := a.handleCreateAccounts(accounts)
+	results, err := a.handleCreateAccounts(accReq)
 	if err != nil {
 		return commons.NewError(ctx, fiber.StatusInternalServerError)
 	}
@@ -27,32 +29,59 @@ func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
 	return commons.NewSuccess(
 		ctx,
 		fiber.Map{
-			"accounts": accounts,
+			"accounts": results,
 		},
 	)
 }
 
-func (a *accountsHandler) handleCreateAccounts(accounts *[]*models.Account) error {
-	entries := [][]any{}
-	columns := []string{"accountid", "balance"}
-	tableName := "accounts"
+func (a *accountsHandler) validateRequest(ctx *fiber.Ctx) (*models.AccountRequest, error) {
+	accReq := new(models.AccountRequest)
 
-	for _, account := range *accounts {
-		entries = append(entries, []any{account.AccountID, 0.00})
+	if err := ctx.BodyParser(accReq); err != nil {
+		a.logger.Error(fmt.Sprintf("[CreateAccounts] error parsing request body : %v", err))
+		return nil, commons.NewError(ctx, fiber.StatusBadRequest)
 	}
 
-	_, err := a.postgresDB.Db.CopyFrom(
-		context.Background(),
-		pgx.Identifier{tableName},
-		columns,
-		pgx.CopyFromRows(entries),
-	)
+	if (*accReq).Count < 1 {
+		a.logger.Error(fmt.Sprintf("[CreateAccounts] request input count '%d' cannot be less than 1", (*accReq).Count))
+		return nil, commons.NewError(ctx, fiber.StatusBadRequest)
+	}
+	return accReq, nil
+}
 
-	if err != nil {
-		a.logger.Error(fmt.Sprintf("[handleCreateAccounts] error copying rows: %v", err))
-		return err
+func (a *accountsHandler) handleCreateAccounts(accReq *models.AccountRequest) ([]pgx.NamedArgs, error) {
+	batch := &pgx.Batch{}
+	argsList := make([]pgx.NamedArgs, 0, accReq.Count)
+
+	for i := 0; i < accReq.Count; i++ {
+		accountID, _ := uuid.NewUUID()
+		args := pgx.NamedArgs{
+			"accountid": accountID.String(),
+			"balance":   0.00,
+		}
+		argsList = append(argsList, args)
+		batch.Queue(database.INSERT_ACCOUNTS_QUERY, args)
 	}
 
-	a.logger.Info(fmt.Sprintf("[handleCreateAccounts] successful created accounts: %#v", entries))
-	return nil
+	results := a.postgresDB.Db.SendBatch(context.Background(), batch)
+	defer func(results pgx.BatchResults) {
+		err := results.Close()
+		if err != nil {
+			a.logger.Error(fmt.Sprintf("[handleCreateAccounts] error closing batch: %v", err))
+		}
+	}(results)
+
+	for i := 0; i < accReq.Count; i++ {
+		_, err := results.Exec()
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+				a.logger.Error(fmt.Sprintf("[handleCreateAccounts] account '%s' already exists : %v", argsList[i]["accountid"], err))
+				continue
+			}
+			return argsList, fmt.Errorf("unable to insert row for account '%s' : %v", argsList[i]["accountid"], err)
+		}
+	}
+
+	return argsList, results.Close()
 }

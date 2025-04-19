@@ -2,13 +2,12 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS accounts
 (
-    id        SERIAL PRIMARY KEY,
-    accountID VARCHAR(36),
+    accountID VARCHAR(36) PRIMARY KEY,
     balance   NUMERIC(2)
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DELETE TABLE accounts;
+DROP TABLE accounts;
 -- +goose StatementEnd

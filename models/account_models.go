@@ -1,10 +1,10 @@
 package models
 
-type Account struct {
-	AccountID string `json:"account_id" gorm:"primaryKey"`
+type AccountRequest struct {
+	Count int `json:"count"`
 }
 
 type AccountResponse struct {
-	Account Account `json:"account"`
-	Balance string  `json:"balance" gorm:"default:0.00"`
+	AccountID string `json:"account_id"`
+	Balance   string `json:"balance"`
 }
