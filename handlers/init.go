@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gomodule/redigo/redis"
 	"github.com/robinloh/wallet-backend/database"
 )
 
@@ -15,12 +16,14 @@ type APIs interface {
 type accountsHandler struct {
 	logger     *slog.Logger
 	postgresDB *database.Postgres
+	redis      *redis.Pool
 }
 
-func Initialize(logger *slog.Logger, postgresDB *database.Postgres) APIs {
+func Initialize(logger *slog.Logger, postgresDB *database.Postgres, cache *redis.Pool) APIs {
 	accountsHandler := &accountsHandler{
 		logger:     logger,
 		postgresDB: postgresDB,
+		redis:      cache,
 	}
 	return accountsHandler
 }
