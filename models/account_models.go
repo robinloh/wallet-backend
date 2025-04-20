@@ -8,3 +8,7 @@ type AccountResponse struct {
 	ID      string `json:"id"`
 	Balance string `json:"balance"`
 }
+
+type GetAccountBalanceRequest struct {
+	Id string `json:"id"`
+}

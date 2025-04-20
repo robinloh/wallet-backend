@@ -14,11 +14,11 @@ import (
 
 func (a *accountsHandler) GetAccountTransactions(ctx *fiber.Ctx) error {
 	req, err := a.validateGetAccountTransactionsRequest(ctx)
-	if err != nil {
+	if err != nil || req == nil {
 		return utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 
-	transactions, err := a.handleGetAccountTransactions(req)
+	transactions, err := a.handleGetAccountTransactions(ctx.UserContext(), req)
 	if err != nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
@@ -35,16 +35,16 @@ func (a *accountsHandler) GetAccountTransactions(ctx *fiber.Ctx) error {
 	)
 }
 
-func (a *accountsHandler) handleGetAccountTransactions(req *models.AccountTransactionsRequest) ([]models.AccountTransactionsResponse, error) {
+func (a *accountsHandler) handleGetAccountTransactions(ctx context.Context, req *models.AccountTransactionsRequest) ([]models.AccountTransactionsResponse, error) {
 	results, err := a.postgresDB.Db.Query(
-		context.Background(),
+		ctx,
 		database.GET_ACCOUNT_TRANSACTIONS_QUERY,
 		pgx.NamedArgs{
 			"account_id": req.AccountID,
 		},
 	)
 
-	if err != nil {
+	if err != nil || results == nil {
 		a.logger.Error(fmt.Sprintf("[handleGetAccountTransactions] unable to query account transactions: %+v", err))
 		return nil, fmt.Errorf("unable to query account transactions : %v", err.Error())
 	}
