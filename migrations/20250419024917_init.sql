@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS transactions
     sendreceiveflag txntype,
     sender_id       VARCHAR(36),
     receiver_id     VARCHAR(36),
-    timestamp       TIMESTAMP DEFAULT NOW(),
+    timestamp TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'cct'),
     status          TEXT
 );
 -- +goose StatementEnd

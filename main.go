@@ -29,5 +29,7 @@ func main() {
 
 	app.Post("v1/deposit", handler.Deposit)
 
+	app.Get("v1/accounts/transactions/:account_id", handler.GetAccountTransactions)
+
 	_ = app.Listen(":8080")
 }
