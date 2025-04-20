@@ -60,7 +60,7 @@ func (a *accountsHandler) handleGetAccountBalance(ctx *fiber.Ctx) ([]models.Acco
 			a.logger.Error(fmt.Sprintf("[handleGetAccountBalance] unable to parse account balance: %+v", err))
 			return nil, fmt.Errorf("unable to parse account balance : %v", err.Error())
 		}
-		account.Balance = fmt.Sprintf("%+v", bal)
+		account.Balance = fmt.Sprintf("%.2f", bal.Float64)
 		resp = append(resp, account)
 	}
 

@@ -35,7 +35,15 @@ func ConnectDb(ctx context.Context) *Postgres {
 		if err != nil {
 			panic("unable to connect to database : " + err.Error())
 		}
+
+		t, err := db.LoadType(ctx, "txntype")
+		if err != nil {
+			panic("unable to load database table type : " + err.Error())
+		}
+		db.TypeMap().RegisterType(t)
+
 		pgxdecimal.Register(db.TypeMap())
+
 		pgInstance = &Postgres{
 			Db: db,
 		}
