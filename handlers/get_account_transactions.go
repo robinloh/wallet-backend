@@ -44,7 +44,7 @@ func (a *accountsHandler) handleGetAccountTransactions(ctx context.Context, req 
 		},
 	)
 
-	if err != nil || results == nil {
+	if err != nil {
 		a.logger.Error(fmt.Sprintf("[handleGetAccountTransactions] unable to query account transactions: %+v", err))
 		return nil, fmt.Errorf("unable to query account transactions : %v", err.Error())
 	}
