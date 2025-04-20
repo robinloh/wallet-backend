@@ -10,6 +10,14 @@ services:
     volumes:
       - .:/wallet-backend
     command: air main.go -b 0.0.0.0
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    command: redis-server --save 20 1 --loglevel debug
+    volumes:
+      - redis:/data
   postgres:
     image: postgres:alpine
     restart: always
@@ -41,4 +49,6 @@ services:
     volumes:
       - ./migrations:/migrations
 volumes:
+  redis:
+    driver: local
   postgres-db:
