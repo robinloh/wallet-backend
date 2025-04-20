@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -11,11 +12,13 @@ import (
 )
 
 func main() {
-	app := fiber.New()
+	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	db := database.ConnectDb()
-	defer db.CloseDbConnection()
+	app := fiber.New()
+
+	db := database.ConnectDb(ctx)
+	defer db.CloseDbConnection(ctx, logger)
 
 	cache := redis.ConnectRedis()
 
@@ -23,6 +26,8 @@ func main() {
 
 	app.Post("v1/accounts", handler.CreateAccounts)
 	app.Get("v1/accounts/:id", handler.GetAccountBalance)
+
+	app.Post("v1/deposit", handler.Deposit)
 
 	_ = app.Listen(":8080")
 }
