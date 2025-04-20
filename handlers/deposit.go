@@ -15,7 +15,7 @@ import (
 
 func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 	req, err := a.validateDepositRequest(ctx)
-	if err != nil {
+	if err != nil || req == nil {
 		return err
 	}
 
@@ -25,7 +25,7 @@ func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	results, err := a.handleDeposit(req, txnID)
+	results, err := a.handleDeposit(ctx.UserContext(), req, txnID)
 	if err != nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
@@ -38,9 +38,7 @@ func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 	)
 }
 
-func (a *accountsHandler) handleDeposit(req *models.Deposit, txnID string) (interface{}, error) {
-	ctx := context.Background()
-
+func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit, txnID string) (interface{}, error) {
 	tx, err := a.postgresDB.Db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		a.logger.Error("[Deposit] Error starting transaction :" + err.Error())

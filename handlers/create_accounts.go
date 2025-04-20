@@ -16,12 +16,12 @@ import (
 )
 
 func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
-	accReq, err := a.validateRequest(ctx)
-	if err != nil {
+	req, err := a.validateCreateAccountsRequest(ctx)
+	if err != nil || req == nil {
 		return err
 	}
 
-	results, err := a.handleCreateAccounts(accReq)
+	results, err := a.handleCreateAccounts(ctx.UserContext(), req)
 	if err != nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
@@ -34,7 +34,7 @@ func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
 	)
 }
 
-func (a *accountsHandler) validateRequest(ctx *fiber.Ctx) (*models.AccountRequest, error) {
+func (a *accountsHandler) validateCreateAccountsRequest(ctx *fiber.Ctx) (*models.AccountRequest, error) {
 	accReq := new(models.AccountRequest)
 
 	if err := ctx.BodyParser(accReq); err != nil {
@@ -49,7 +49,7 @@ func (a *accountsHandler) validateRequest(ctx *fiber.Ctx) (*models.AccountReques
 	return accReq, nil
 }
 
-func (a *accountsHandler) handleCreateAccounts(accReq *models.AccountRequest) ([]pgx.NamedArgs, error) {
+func (a *accountsHandler) handleCreateAccounts(ctx context.Context, accReq *models.AccountRequest) ([]pgx.NamedArgs, error) {
 	batch := &pgx.Batch{}
 	argsList := make([]pgx.NamedArgs, 0, accReq.Count)
 
@@ -63,7 +63,7 @@ func (a *accountsHandler) handleCreateAccounts(accReq *models.AccountRequest) ([
 		batch.Queue(database.INSERT_ACCOUNTS_QUERY, args)
 	}
 
-	results := a.postgresDB.Db.SendBatch(context.Background(), batch)
+	results := a.postgresDB.Db.SendBatch(ctx, batch)
 	defer func(results pgx.BatchResults) {
 		err := results.Close()
 		if err != nil {

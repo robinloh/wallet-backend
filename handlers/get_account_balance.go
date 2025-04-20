@@ -14,13 +14,13 @@ import (
 )
 
 func (a *accountsHandler) GetAccountBalance(ctx *fiber.Ctx) error {
-	err := a.validateGetAccountBalanceRequest(ctx)
-	if err != nil {
+	req, err := a.validateGetAccountBalanceRequest(ctx)
+	if err != nil || req == nil {
 		return utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 
-	accounts, err := a.handleGetAccountBalance(ctx)
-	if err != nil {
+	accounts, err := a.handleGetAccountBalance(ctx.UserContext(), req)
+	if err != nil || accounts == nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
@@ -36,12 +36,12 @@ func (a *accountsHandler) GetAccountBalance(ctx *fiber.Ctx) error {
 	)
 }
 
-func (a *accountsHandler) handleGetAccountBalance(ctx *fiber.Ctx) ([]models.AccountResponse, error) {
+func (a *accountsHandler) handleGetAccountBalance(ctx context.Context, req *models.GetAccountBalanceRequest) ([]models.AccountResponse, error) {
 	results, err := a.postgresDB.Db.Query(
-		context.Background(),
+		ctx,
 		database.GET_ACCOUNT_BALANCE_QUERY,
 		pgx.NamedArgs{
-			"id": ctx.Params("id"),
+			"id": req.Id,
 		},
 	)
 	if err != nil {
@@ -67,11 +67,13 @@ func (a *accountsHandler) handleGetAccountBalance(ctx *fiber.Ctx) ([]models.Acco
 	return resp, err
 }
 
-func (a *accountsHandler) validateGetAccountBalanceRequest(ctx *fiber.Ctx) error {
+func (a *accountsHandler) validateGetAccountBalanceRequest(ctx *fiber.Ctx) (*models.GetAccountBalanceRequest, error) {
 	id := ctx.Params("id")
 	if err := uuid.Validate(id); err != nil {
 		a.logger.Error(fmt.Sprintf("[GetAccountBalance] Invalid account ID '%s'", id))
-		return utils.NewError(ctx, fiber.StatusBadRequest)
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
 	}
-	return nil
+	return &models.GetAccountBalanceRequest{
+		Id: id,
+	}, nil
 }
