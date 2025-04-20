@@ -1,13 +1,20 @@
 package redis
 
-import "github.com/gomodule/redigo/redis"
+import (
+	"fmt"
 
-func ConnectRedis() *redis.Pool {
-	pool := &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", ":6379")
-		},
+	"github.com/gomodule/redigo/redis"
+)
+
+type Redis struct {
+	redis redis.Conn
+}
+
+func ConnectRedis() redis.Conn {
+	conn, err := redis.Dial("tcp", "redis:6379")
+	if err != nil {
+		panic(fmt.Sprintf("redis connect err : %s", err))
 	}
 
-	return pool
+	return conn
 }
