@@ -3,14 +3,16 @@ package database
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	pgxdecimal "github.com/jackc/pgx-shopspring-decimal"
+	"github.com/jackc/pgx/v5"
 )
 
 type Postgres struct {
-	Db *pgxpool.Pool
+	Db *pgx.Conn
 }
 
 var (
@@ -18,7 +20,7 @@ var (
 	pgOnce     sync.Once
 )
 
-func ConnectDb() *Postgres {
+func ConnectDb(ctx context.Context) *Postgres {
 	dataSource := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
 		os.Getenv("POSTGRES_HOST"),
@@ -29,10 +31,11 @@ func ConnectDb() *Postgres {
 	)
 
 	pgOnce.Do(func() {
-		db, err := pgxpool.New(context.Background(), dataSource)
+		db, err := pgx.Connect(ctx, dataSource)
 		if err != nil {
 			panic("unable to connect to database : " + err.Error())
 		}
+		pgxdecimal.Register(db.TypeMap())
 		pgInstance = &Postgres{
 			Db: db,
 		}
@@ -40,6 +43,10 @@ func ConnectDb() *Postgres {
 	return pgInstance
 }
 
-func (p *Postgres) CloseDbConnection() {
-	p.Db.Close()
+func (p *Postgres) CloseDbConnection(ctx context.Context, logger *slog.Logger) {
+	err := p.Db.Close(ctx)
+	if err != nil {
+		logger.Error("unable to close database connection : " + err.Error())
+		os.Exit(1)
+	}
 }

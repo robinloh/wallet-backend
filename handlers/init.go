@@ -11,6 +11,7 @@ import (
 type APIs interface {
 	CreateAccounts(*fiber.Ctx) error
 	GetAccountBalance(*fiber.Ctx) error
+	Deposit(*fiber.Ctx) error
 }
 
 type accountsHandler struct {

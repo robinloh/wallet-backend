@@ -10,9 +10,9 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/robinloh/wallet-backend/commons"
 	"github.com/robinloh/wallet-backend/database"
 	"github.com/robinloh/wallet-backend/models"
+	"github.com/robinloh/wallet-backend/utils"
 )
 
 func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
@@ -23,10 +23,10 @@ func (a *accountsHandler) CreateAccounts(ctx *fiber.Ctx) error {
 
 	results, err := a.handleCreateAccounts(accReq)
 	if err != nil {
-		return commons.NewError(ctx, fiber.StatusInternalServerError)
+		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	return commons.NewSuccess(
+	return utils.NewSuccess(
 		ctx,
 		fiber.Map{
 			"accounts": results,
@@ -39,12 +39,12 @@ func (a *accountsHandler) validateRequest(ctx *fiber.Ctx) (*models.AccountReques
 
 	if err := ctx.BodyParser(accReq); err != nil {
 		a.logger.Error(fmt.Sprintf("[CreateAccounts] error parsing request body : %v", err))
-		return nil, commons.NewError(ctx, fiber.StatusBadRequest)
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 
 	if (*accReq).Count < 1 {
 		a.logger.Error(fmt.Sprintf("[CreateAccounts] request input count '%d' cannot be less than 1", (*accReq).Count))
-		return nil, commons.NewError(ctx, fiber.StatusBadRequest)
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 	return accReq, nil
 }
