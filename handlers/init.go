@@ -16,10 +16,10 @@ type APIs interface {
 type accountsHandler struct {
 	logger     *slog.Logger
 	postgresDB *database.Postgres
-	redis      *redis.Pool
+	redis      redis.Conn
 }
 
-func Initialize(logger *slog.Logger, postgresDB *database.Postgres, cache *redis.Pool) APIs {
+func Initialize(logger *slog.Logger, postgresDB *database.Postgres, cache redis.Conn) APIs {
 	accountsHandler := &accountsHandler{
 		logger:     logger,
 		postgresDB: postgresDB,
