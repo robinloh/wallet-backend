@@ -7,7 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/robinloh/wallet-backend/database"
 	"github.com/robinloh/wallet-backend/models"
 	"github.com/robinloh/wallet-backend/utils"
@@ -16,7 +15,7 @@ import (
 func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 	req, err := a.validateDepositRequest(ctx)
 	if err != nil || req == nil {
-		return err
+		return utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 
 	txnID, err := utils.GenerateTxnID()
@@ -39,29 +38,18 @@ func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 }
 
 func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit, txnID string) (interface{}, error) {
-	tx, err := a.postgresDB.Db.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		a.logger.Error("[Deposit] Error starting transaction :" + err.Error())
-		return &models.DepositResponse{
-			AccountID:     req.ID,
-			Amount:        req.Amount,
-			Status:        utils.FAILED,
-			TransactionID: txnID,
-		}, err
-	}
+	var done int64
 
-	defer func(tx pgx.Tx, ctx context.Context) {
-		_ = tx.Rollback(ctx)
-	}(tx, ctx)
-
-	_, err = tx.Exec(
+	err := a.postgresDB.Db.QueryRow(
 		ctx,
 		database.DEPOSIT_QUERY,
 		req.ID,
 		req.Amount,
-	)
+		txnID,
+	).Scan(&done)
+
 	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error depositing into account '%s' : %+v", req.ID, err))
+		a.logger.Error(fmt.Sprintf("[Deposit] Error depositing from account '%s' : %+v", req.ID, err))
 		return &models.DepositResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
@@ -70,32 +58,8 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 		}, err
 	}
 
-	_, err = tx.Exec(
-		ctx,
-		database.INSERT_TRANSACTION_QUERY,
-		pgx.NamedArgs{
-			"id":              txnID,
-			"account_id":      req.ID,
-			"amount":          req.Amount,
-			"sendreceiveflag": utils.SENDER,
-			"sender_id":       "",
-			"receiver_id":     req.ID,
-			"status":          utils.COMPLETED,
-		},
-	)
-
-	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error updating transaction '%s' for account '%s' : %+v", txnID, req.ID, err))
-		return &models.DepositResponse{
-			AccountID:     req.ID,
-			Amount:        req.Amount,
-			Status:        utils.FAILED,
-			TransactionID: txnID,
-		}, err
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error committing transaction into account '%s' : %+v", req.ID, err))
+	if done == 0 {
+		a.logger.Error(fmt.Sprintf("[Deposit] Depositing '%f' was not done from account '%s'", req.Amount, req.ID))
 		return &models.DepositResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
