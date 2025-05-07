@@ -30,6 +30,8 @@ func main() {
 	app.Post("v1/deposit", handler.Deposit)
 	app.Post("v1/withdraw", handler.Withdraw)
 
+	app.Post("v1/transfer", handler.Transfer)
+
 	app.Get("v1/accounts/transactions/:account_id", handler.GetAccountTransactions)
 
 	_ = app.Listen(":8080")

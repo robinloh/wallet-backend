@@ -15,6 +15,8 @@ type APIs interface {
 	Deposit(*fiber.Ctx) error
 	Withdraw(*fiber.Ctx) error
 
+	Transfer(*fiber.Ctx) error
+
 	GetAccountTransactions(*fiber.Ctx) error
 }
 

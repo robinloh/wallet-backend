@@ -47,6 +47,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 		req.Amount,
 		txnID,
 		database.TxnTypeWithdraw,
+		"",
 	).Scan(&done)
 
 	if err != nil {

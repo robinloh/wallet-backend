@@ -5,7 +5,8 @@ type TxnType string
 const (
 	TxnTypeDeposit  TxnType = "deposit"
 	TxnTypeWithdraw TxnType = "withdraw"
-	txnTypeTransfer TxnType = "transfer"
+	TxnTypeSender   TxnType = "sender"
+	TxnTypeReceiver TxnType = "receiver"
 )
 
 const (
@@ -23,10 +24,17 @@ const (
 			$1, 
 			$2, 
 			$4, 
-			'', 
-			'', 
+			CASE WHEN CAST ($4 AS txntype) = 'receiver' THEN $5 ELSE '' END, 
+			CASE WHEN CAST ($4 AS txntype) = 'receiver' THEN $1 ELSE '' END, 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
 		)
+	), txns_transfer_failed AS (
+		INSERT INTO transactions (id, account_id, amount, txntype, sender_id, receiver_id, status) 
+		VALUES ($3, $5, $2, 'sender', $5, $1, 'failed')
+		ON CONFLICT (id, txntype)
+		DO UPDATE SET (id, account_id, amount, txntype, sender_id, receiver_id, status) =
+		($3, $5, $2, 'sender', $5, $1, 'failed')
+		WHERE CAST ($4 AS txntype) = 'receiver' AND (SELECT COUNT(*) FROM accs) = 0
 	)
 	SELECT COUNT(*) FROM accs`
 
@@ -41,10 +49,17 @@ const (
 			$1, 
 			$2, 
 			$4, 
-			'', 
-			'', 
+			CASE WHEN CAST ($4 AS txntype) = 'sender' THEN $1 ELSE '' END, 
+			CASE WHEN CAST ($4 AS txntype) = 'sender' THEN $5 ELSE '' END, 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
 		)
+	), txns_transfer_failed AS (
+		INSERT INTO transactions (id, account_id, amount, txntype, sender_id, receiver_id, status) 
+		VALUES ($3, $5, $2, 'receiver', $1, $5, 'failed')
+		ON CONFLICT (id, txntype)
+		DO UPDATE SET (id, account_id, amount, txntype, sender_id, receiver_id, status) = 
+		($3, $5, $2, 'receiver', $1, $5, 'failed')
+		WHERE CAST ($4 AS txntype) = 'sender' AND (SELECT COUNT(*) FROM accs) = 0
 	)
 	SELECT COUNT(*) FROM accs 
 	`
