@@ -55,7 +55,7 @@ func (a *accountsHandler) handleGetAccountTransactions(ctx context.Context, req 
 
 	for results.Next() {
 		account := models.AccountTransactionsResponse{}
-		err = results.Scan(&account.AccountID, &account.TransactionID, &account.Amount, &account.TxnType, &account.SenderID, &account.ReceiverID, &account.Timestamp, &account.Status)
+		err = results.Scan(&account.TransactionID, &account.AccountID, &account.Amount, &account.TxnType, &account.SenderID, &account.ReceiverID, &account.Timestamp, &account.Status)
 		if err != nil {
 			a.logger.Error(fmt.Sprintf("[handleGetAccountTransactions] unable to parse account transactions: %+v", err))
 			return nil, fmt.Errorf("unable to parse account transactions : %v", err.Error())
