@@ -13,6 +13,7 @@ type APIs interface {
 	GetAccountBalance(*fiber.Ctx) error
 
 	Deposit(*fiber.Ctx) error
+	Withdraw(*fiber.Ctx) error
 
 	GetAccountTransactions(*fiber.Ctx) error
 }
