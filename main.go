@@ -28,6 +28,7 @@ func main() {
 	app.Get("v1/accounts/:id", handler.GetAccountBalance)
 
 	app.Post("v1/deposit", handler.Deposit)
+	app.Post("v1/withdraw", handler.Withdraw)
 
 	app.Get("v1/accounts/transactions/:account_id", handler.GetAccountTransactions)
 

@@ -7,25 +7,24 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/robinloh/wallet-backend/database"
 	"github.com/robinloh/wallet-backend/models"
 	"github.com/robinloh/wallet-backend/utils"
 )
 
-func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
-	req, err := a.validateDepositRequest(ctx)
+func (a *accountsHandler) Withdraw(ctx *fiber.Ctx) error {
+	req, err := a.validateWithdrawRequest(ctx)
 	if err != nil || req == nil {
 		return err
 	}
 
 	txnID, err := utils.GenerateTxnID()
 	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Failed to generate transaction ID for account '%s' : %+v", req.ID, err.Error()))
+		a.logger.Error(fmt.Sprintf("[Withdraw] Failed to generate transaction ID for account '%s' : %+v", req.ID, err.Error()))
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	results, err := a.handleDeposit(ctx.UserContext(), req, txnID)
+	results, err := a.handleWithdraw(ctx.UserContext(), req, txnID)
 	if err != nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
@@ -38,55 +37,20 @@ func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 	)
 }
 
-func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit, txnID string) (interface{}, error) {
-	tx, err := a.postgresDB.Db.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		a.logger.Error("[Deposit] Error starting transaction :" + err.Error())
-		return &models.DepositResponse{
-			AccountID:     req.ID,
-			Amount:        req.Amount,
-			Status:        utils.FAILED,
-			TransactionID: txnID,
-		}, err
-	}
+func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdraw, txnID string) (interface{}, error) {
+	var done int64
 
-	defer func(tx pgx.Tx, ctx context.Context) {
-		_ = tx.Rollback(ctx)
-	}(tx, ctx)
-
-	_, err = tx.Exec(
+	err := a.postgresDB.Db.QueryRow(
 		ctx,
-		database.DEPOSIT_QUERY,
+		database.WITHDRAW_QUERY,
 		req.ID,
 		req.Amount,
-	)
-	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error depositing into account '%s' : %+v", req.ID, err))
-		return &models.DepositResponse{
-			AccountID:     req.ID,
-			Amount:        req.Amount,
-			Status:        utils.FAILED,
-			TransactionID: txnID,
-		}, err
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		database.INSERT_TRANSACTION_QUERY,
-		pgx.NamedArgs{
-			"id":              txnID,
-			"account_id":      req.ID,
-			"amount":          req.Amount,
-			"sendreceiveflag": utils.SENDER,
-			"sender_id":       "",
-			"receiver_id":     req.ID,
-			"status":          utils.COMPLETED,
-		},
-	)
+		txnID,
+	).Scan(&done)
 
 	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error updating transaction '%s' for account '%s' : %+v", txnID, req.ID, err))
-		return &models.DepositResponse{
+		a.logger.Error(fmt.Sprintf("[Withdraw] Error withdrawing from account '%s' : %+v", req.ID, err))
+		return &models.WithdrawResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
@@ -94,9 +58,9 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 		}, err
 	}
 
-	if err = tx.Commit(ctx); err != nil {
-		a.logger.Error(fmt.Sprintf("[Deposit] Error committing transaction into account '%s' : %+v", req.ID, err))
-		return &models.DepositResponse{
+	if done == 0 {
+		a.logger.Error(fmt.Sprintf("[Withdraw] Withdrawal '%f' was not done from account '%s'", req.Amount, req.ID))
+		return &models.WithdrawResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
@@ -104,16 +68,16 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 		}, err
 	}
 
-	return &models.DepositResponse{
+	return &models.WithdrawResponse{
 		AccountID:     req.ID,
 		Amount:        req.Amount,
 		Status:        utils.COMPLETED,
 		TransactionID: txnID,
-	}, nil
+	}, err
 }
 
-func (a *accountsHandler) validateDepositRequest(ctx *fiber.Ctx) (*models.Deposit, error) {
-	req := new(models.DepositRequest)
+func (a *accountsHandler) validateWithdrawRequest(ctx *fiber.Ctx) (*models.Withdraw, error) {
+	req := new(models.WithdrawRequest)
 
 	if err := ctx.BodyParser(req); err != nil {
 		a.logger.Error(fmt.Sprintf("[Deposit] error parsing request body : %v", err))
@@ -142,8 +106,8 @@ func (a *accountsHandler) validateDepositRequest(ctx *fiber.Ctx) (*models.Deposi
 		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
 	}
 
-	return &models.Deposit{
-		ID:     (*req).ID,
+	return &models.Withdraw{
+		ID:     req.ID,
 		Amount: amount,
 	}, nil
 }
