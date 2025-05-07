@@ -23,10 +23,6 @@ func (a *accountsHandler) GetAccountTransactions(ctx *fiber.Ctx) error {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	if len(transactions) == 0 {
-		return utils.NewError(ctx, fiber.StatusNotFound)
-	}
-
 	return utils.NewSuccess(
 		ctx,
 		fiber.Map{
