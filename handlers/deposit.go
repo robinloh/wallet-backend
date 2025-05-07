@@ -46,6 +46,7 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 		req.ID,
 		req.Amount,
 		txnID,
+		database.TxnTypeDeposit,
 	).Scan(&done)
 
 	if err != nil {

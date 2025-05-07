@@ -1,5 +1,13 @@
 package database
 
+type TxnType string
+
+const (
+	TxnTypeDeposit  TxnType = "deposit"
+	TxnTypeWithdraw TxnType = "withdraw"
+	txnTypeTransfer TxnType = "transfer"
+)
+
 const (
 	INSERT_ACCOUNTS_QUERY     = `INSERT INTO accounts (id, balance) VALUES (@id, @balance)`
 	GET_ACCOUNT_BALANCE_QUERY = `SELECT id, balance FROM accounts WHERE id = @id`
@@ -14,7 +22,7 @@ const (
 			$3, 
 			$1, 
 			$2, 
-			'deposit', 
+			$4, 
 			'', 
 			'', 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
@@ -32,7 +40,7 @@ const (
 			$3, 
 			$1, 
 			$2, 
-			'withdraw', 
+			$4, 
 			'', 
 			'', 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
