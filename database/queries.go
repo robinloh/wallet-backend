@@ -52,8 +52,8 @@ const (
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
 		)
 	), txns_transfer_failed AS (
-		INSERT INTO transactions 
-		VALUES $3, $5, $2, 'receiver', $1, $5, 'failed'
+		INSERT INTO transactions (id, account_id, amount, txntype, sender_id, receiver_id, status)
+		SELECT $3, $5, $2, 'receiver', $1, $5, 'failed'
 		WHERE $4 = 'sender' AND (SELECT COUNT(*) FROM accs) = 0
 	)
 	SELECT COUNT(*) FROM accs 

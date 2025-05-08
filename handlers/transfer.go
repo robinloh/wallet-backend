@@ -51,9 +51,9 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		}, err
 	}
 
-	var done int64
+	var withdrawalDone int64
 
-	err = tx.QueryRow(
+	withdrawalErr := tx.QueryRow(
 		ctx,
 		database.WITHDRAW_QUERY,
 		req.From,
@@ -61,9 +61,9 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		txnID,
 		database.TxnTypeSender,
 		req.To,
-	).Scan(&done)
+	).Scan(&withdrawalDone)
 
-	if err != nil {
+	if withdrawalErr != nil {
 		a.logger.Error(fmt.Sprintf("[Transfer] Error withdrawing from account '%s' : %+v", req.From, err))
 		return &models.TransferResponse{
 			From:          req.From,
@@ -74,8 +74,22 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		}, err
 	}
 
-	if done == 0 {
+	if withdrawalDone == 0 {
 		a.logger.Error(fmt.Sprintf("[Transfer] Withdrawing '%f' was not done from account '%s'", req.Amount, req.From))
+
+		err = tx.Commit(ctx)
+		if err != nil {
+			a.logger.Error(fmt.Sprintf("[Transfer] Error committing database transaction '%s' : %+v", txnID, err))
+			_ = tx.Rollback(ctx)
+			return &models.TransferResponse{
+				From:          req.From,
+				To:            req.To,
+				Amount:        req.Amount,
+				Status:        utils.FAILED,
+				TransactionID: txnID,
+			}, err
+		}
+
 		return &models.TransferResponse{
 			From:          req.From,
 			To:            req.To,
@@ -85,7 +99,9 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		}, err
 	}
 
-	err = tx.QueryRow(
+	var depositDone int64
+
+	depositErr := tx.QueryRow(
 		ctx,
 		database.DEPOSIT_QUERY,
 		req.To,
@@ -93,9 +109,22 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		txnID,
 		database.TxnTypeReceiver,
 		req.From,
-	).Scan(&done)
+	).Scan(&depositDone)
 
+	err = tx.Commit(ctx)
 	if err != nil {
+		a.logger.Error(fmt.Sprintf("[Transfer] Error committing database transaction '%s' : %+v", txnID, err))
+		_ = tx.Rollback(ctx)
+		return &models.TransferResponse{
+			From:          req.From,
+			To:            req.To,
+			Amount:        req.Amount,
+			Status:        utils.FAILED,
+			TransactionID: txnID,
+		}, err
+	}
+
+	if depositErr != nil {
 		a.logger.Error(fmt.Sprintf("[Transfer] Error depositing into account '%s' : %+v", req.To, err))
 		return &models.TransferResponse{
 			From:          req.From,
@@ -106,21 +135,8 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		}, err
 	}
 
-	if done == 0 {
+	if depositDone == 0 {
 		a.logger.Error(fmt.Sprintf("[Transfer] Depositing '%f' was not done into account '%s'", req.Amount, req.To))
-		return &models.TransferResponse{
-			From:          req.From,
-			To:            req.To,
-			Amount:        req.Amount,
-			Status:        utils.FAILED,
-			TransactionID: txnID,
-		}, err
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Transfer] Error committing database transaction '%s' : %+v", txnID, err))
-		_ = tx.Rollback(ctx)
 		return &models.TransferResponse{
 			From:          req.From,
 			To:            req.To,
