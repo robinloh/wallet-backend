@@ -1,5 +1,9 @@
 package models
 
+type TransferRequestHeader struct {
+	IdempotencyKey string `reqHeader:"Idempotency-Key"`
+}
+
 type TransferRequest struct {
 	From   string `json:"from"`
 	To     string `json:"to"`

@@ -1,5 +1,9 @@
 package models
 
+type AccountRequestHeader struct {
+	IdempotencyKey string `reqHeader:"Idempotency-Key"`
+}
+
 type AccountRequest struct {
 	Count int `json:"count"`
 }

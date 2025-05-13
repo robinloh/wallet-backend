@@ -1,5 +1,9 @@
 package models
 
+type WithdrawRequestHeader struct {
+	IdempotencyKey string `reqHeader:"Idempotency-Key"`
+}
+
 type WithdrawRequest struct {
 	ID     string `json:"id"`
 	Amount string `json:"amount"`

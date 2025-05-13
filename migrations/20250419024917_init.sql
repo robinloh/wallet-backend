@@ -10,14 +10,14 @@ CREATE TYPE txntype AS ENUM ('deposit', 'withdraw', 'sender', 'receiver');
 
 CREATE TABLE IF NOT EXISTS transactions
 (
-    id     VARCHAR(36),
+    id        VARCHAR(36),
     account_id      VARCHAR(36),
     amount          FLOAT8,
     txntype         txntype,
     sender_id       VARCHAR(36),
     receiver_id     VARCHAR(36),
     timestamp TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'cct'),
-    status TEXT,
+    status    TEXT,
     PRIMARY KEY (id, txntype)
 );
 -- +goose StatementEnd
@@ -25,4 +25,5 @@ CREATE TABLE IF NOT EXISTS transactions
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE accounts;
+DROP TABLE transactions;
 -- +goose StatementEnd
