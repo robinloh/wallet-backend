@@ -20,7 +20,7 @@ func main() {
 	db := database.ConnectDb(ctx)
 	defer db.CloseDbConnection(ctx, logger)
 
-	cache := redis.ConnectRedis()
+	cache := redis.ConnectRedis(logger)
 
 	handler := handlers.Initialize(logger, db, cache)
 

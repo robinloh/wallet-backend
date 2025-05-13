@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/robinloh/wallet-backend/database"
 	"github.com/robinloh/wallet-backend/models"
 	"github.com/robinloh/wallet-backend/utils"
 )
+
+const withdrawOp = "Withdraw"
 
 func (a *accountsHandler) Withdraw(ctx *fiber.Ctx) error {
 	req, err := a.validateWithdrawRequest(ctx)
@@ -18,26 +22,68 @@ func (a *accountsHandler) Withdraw(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	txnID, err := utils.GenerateTxnID()
+	reqHeader, err := a.validateWithdrawHeader(ctx)
+	if err != nil || reqHeader == nil {
+		return utils.NewError(ctx, fiber.StatusBadRequest)
+	}
+
+	redisKey := fmt.Sprintf("%s_%s", reqHeader.IdempotencyKey, withdrawOp)
+
+	redisConn := a.redis.RedisPool.Get()
+	defer func(redisConn redis.Conn) {
+		err := redisConn.Close()
+		if err != nil {
+			a.logger.Error(fmt.Sprintf("[%s] Error closing redis connection for redisKey '%s'. error: %s", withdrawOp, redisKey, err.Error()))
+		}
+	}(redisConn)
+
+	ok, err := a.redis.Acquire(redisConn, redisKey)
 	if err != nil {
-		a.logger.Error(fmt.Sprintf("[Withdraw] Failed to generate transaction ID for account '%s' : %+v", req.ID, err.Error()))
+		a.logger.Error(fmt.Sprintf("[%s] error acquiring lock for idempotency key '%s' : %v", withdrawOp, redisKey, err))
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	results, err := a.handleWithdraw(ctx.UserContext(), req, txnID)
+	shouldRelease := true
+
+	defer func() {
+		err := a.redis.Release(redisConn, redisKey, shouldRelease)
+		if err != nil {
+			a.logger.Error(fmt.Sprintf("[%s] error releasing lock for idempotency key '%s' : %v", withdrawOp, redisKey, err))
+		}
+	}()
+
+	if !ok {
+		shouldRelease = false
+		results, err := a.redis.HandleMultipleRequests(ctx.UserContext(), redisKey, 5*time.Second)
+		if err != nil || results == nil {
+			a.logger.Error(fmt.Sprintf("[%s] error handling multiple requests '%s' : %v", withdrawOp, redisKey, err))
+			return utils.NewError(ctx, fiber.StatusInternalServerError)
+		}
+		a.logger.Info(fmt.Sprintf("[%s] multiple requests detected for '%s' : Results : %+v", withdrawOp, redisKey, results))
+		return utils.NewSuccess(ctx, results)
+	}
+
+	results, err := a.handleWithdraw(ctx.UserContext(), req, reqHeader)
 	if err != nil {
 		return utils.NewError(ctx, fiber.StatusInternalServerError)
 	}
 
-	return utils.NewSuccess(
-		ctx,
-		fiber.Map{
-			"accounts": results,
-		},
-	)
+	successResp := fiber.Map{
+		"accounts": results,
+	}
+
+	err = a.redis.Publish(redisConn, redisKey, successResp)
+	if err != nil {
+		a.logger.Error(fmt.Sprintf("[%s] Unable to publish results for idempotency key '%s' : %v", withdrawOp, redisKey, err))
+		return utils.NewError(ctx, fiber.StatusInternalServerError)
+	} else {
+		a.logger.Debug(fmt.Sprintf("[%s] Successfully published results '%+v' for idempotency key '%s'", withdrawOp, results, redisKey))
+	}
+
+	return utils.NewSuccess(ctx, successResp)
 }
 
-func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdraw, txnID string) (interface{}, error) {
+func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdraw, reqHeader *models.WithdrawRequestHeader) (interface{}, error) {
 	var done int64
 
 	err := a.postgresDB.Db.QueryRow(
@@ -45,7 +91,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 		database.WITHDRAW_QUERY,
 		req.ID,
 		req.Amount,
-		txnID,
+		reqHeader.IdempotencyKey,
 		database.TxnTypeWithdraw,
 		"",
 	).Scan(&done)
@@ -56,7 +102,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 			AccountID:     req.ID,
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
-			TransactionID: txnID,
+			TransactionID: reqHeader.IdempotencyKey,
 		}, err
 	}
 
@@ -66,7 +112,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 			AccountID:     req.ID,
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
-			TransactionID: txnID,
+			TransactionID: reqHeader.IdempotencyKey,
 		}, err
 	}
 
@@ -74,7 +120,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 		AccountID:     req.ID,
 		Amount:        req.Amount,
 		Status:        utils.COMPLETED,
-		TransactionID: txnID,
+		TransactionID: reqHeader.IdempotencyKey,
 	}, err
 }
 
@@ -112,4 +158,26 @@ func (a *accountsHandler) validateWithdrawRequest(ctx *fiber.Ctx) (*models.Withd
 		ID:     req.ID,
 		Amount: amount,
 	}, nil
+}
+
+func (a *accountsHandler) validateWithdrawHeader(ctx *fiber.Ctx) (*models.WithdrawRequestHeader, error) {
+	withdrawReqHeader := new(models.WithdrawRequestHeader)
+
+	if err := ctx.ReqHeaderParser(withdrawReqHeader); err != nil {
+		a.logger.Error(fmt.Sprintf("[%s] error parsing request body header : %v", withdrawOp, err))
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
+	}
+
+	if len(withdrawReqHeader.IdempotencyKey) == 0 {
+		a.logger.Error(fmt.Sprintf("[%s] request header IdempotencyKey '%s' is not supplied", withdrawOp, withdrawReqHeader.IdempotencyKey))
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
+	}
+
+	err := uuid.Validate(withdrawReqHeader.IdempotencyKey)
+	if err != nil {
+		a.logger.Error(fmt.Sprintf("[%s] request header IdempotencyKey '%s' is not valid", withdrawOp, withdrawReqHeader.IdempotencyKey))
+		return nil, utils.NewError(ctx, fiber.StatusBadRequest)
+	}
+
+	return withdrawReqHeader, nil
 }

@@ -28,6 +28,7 @@ const (
 			CASE WHEN CAST ($4 AS txntype) = 'receiver' THEN $1 ELSE '' END, 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
 		)
+		ON CONFLICT DO NOTHING
 	), txns_transfer_failed AS (
 		UPDATE transactions 
 		SET (id, account_id, amount, txntype, sender_id, receiver_id, status) = 
@@ -51,6 +52,7 @@ const (
 			CASE WHEN CAST ($4 AS txntype) = 'sender' THEN $5 ELSE '' END, 
 			CASE WHEN (SELECT COUNT(*) FROM accs) = 0 THEN 'failed' ELSE 'completed' END
 		)
+		ON CONFLICT DO NOTHING
 	), txns_transfer_failed AS (
 		INSERT INTO transactions (id, account_id, amount, txntype, sender_id, receiver_id, status)
 		SELECT $3, $5, $2, 'receiver', $1, $5, 'failed'
@@ -60,4 +62,5 @@ const (
 	`
 
 	GET_ACCOUNT_TRANSACTIONS_QUERY = `SELECT id, account_id, amount, txntype, sender_id, receiver_id, timestamp::timestamptz, status FROM transactions WHERE account_id = @account_id`
+	GET_TRANSACTIONS_QUERY         = `SELECT id, account_id, amount, txntype, sender_id, receiver_id, timestamp::timestamptz, status FROM transactions WHERE id = @id ORDER BY timestamp::timestamptz DESC`
 )

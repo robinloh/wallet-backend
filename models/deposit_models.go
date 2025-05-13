@@ -1,5 +1,9 @@
 package models
 
+type DepositRequestHeader struct {
+	IdempotencyKey string `reqHeader:"Idempotency-Key"`
+}
+
 type DepositRequest struct {
 	ID     string `json:"id"`
 	Amount string `json:"amount"`

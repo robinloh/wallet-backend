@@ -63,6 +63,38 @@ func (a *accountsHandler) handleGetAccountTransactions(ctx context.Context, req 
 	return resp, err
 }
 
+func (a *accountsHandler) handleGetTransactions(ctx context.Context, txnID string) ([]models.AccountTransactionsResponse, error) {
+	results, err := a.postgresDB.Db.Query(
+		ctx,
+		database.GET_TRANSACTIONS_QUERY,
+		pgx.NamedArgs{
+			"id": txnID,
+		},
+	)
+
+	if err != nil {
+		a.logger.Error(fmt.Sprintf("[handleGetTransactions] unable to query transactions: %+v", err))
+		return nil, fmt.Errorf("unable to query transactions : %v", err.Error())
+	}
+
+	defer results.Close()
+
+	resp := make([]models.AccountTransactionsResponse, 0)
+
+	for results.Next() {
+		account := models.AccountTransactionsResponse{}
+		err = results.Scan(&account.TransactionID, &account.AccountID, &account.Amount, &account.TxnType, &account.SenderID, &account.ReceiverID, &account.Timestamp, &account.Status)
+		if err != nil {
+			a.logger.Error(fmt.Sprintf("[handleGetAccountTransactions] unable to parse account transactions: %+v", err))
+			return nil, fmt.Errorf("unable to parse account transactions : %v", err.Error())
+		}
+		account.Timestamp = utils.ConvertTimezone(account.Timestamp)
+		resp = append(resp, account)
+	}
+
+	return resp, err
+}
+
 func (a *accountsHandler) validateGetAccountTransactionsRequest(ctx *fiber.Ctx) (*models.AccountTransactionsRequest, error) {
 	accountId := ctx.Params("account_id")
 	if err := uuid.Validate(accountId); err != nil {
