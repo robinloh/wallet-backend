@@ -83,7 +83,7 @@ func (a *accountsHandler) Deposit(ctx *fiber.Ctx) error {
 	return utils.NewSuccess(ctx, successResp)
 }
 
-func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit, reqHeader *models.DepositRequestHeader) (interface{}, error) {
+func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit, reqHeader *models.DepositRequestHeader) (*models.DepositResponse, error) {
 	res, err := a.handleGetTransactions(ctx, reqHeader.IdempotencyKey)
 	if err != nil {
 		a.logger.Error(fmt.Sprintf("[%s] Error finding existing transaction '%s' : %+v", depositOp, reqHeader.IdempotencyKey, err))
@@ -128,7 +128,8 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 	}
 
 	if done == 0 {
-		a.logger.Error(fmt.Sprintf("[%s] Depositing '%f' was not done from account '%s'", depositOp, req.Amount, req.ID))
+		err = fmt.Errorf("[%s] Depositing '%f' was not done from account '%s'", depositOp, req.Amount, req.ID)
+		a.logger.Error(err.Error())
 		return &models.DepositResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
