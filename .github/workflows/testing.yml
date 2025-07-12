@@ -48,3 +48,6 @@ jobs:
       pull-requests: write
     steps:
       - uses: fgrosse/go-coverage-report@v1.2.0
+        with:
+          coverage-artifact-name: Go-results-${{ matrix.go-version }}
+          coverage-file-name: TestResults-${{ matrix.go-version }}.txt
