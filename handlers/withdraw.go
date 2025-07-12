@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -108,7 +107,7 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 	}
 
 	if done == 0 {
-		err = errors.New(fmt.Sprintf("[Withdraw] Withdrawal '%f' was not done from account '%s'", req.Amount, req.ID))
+		err = fmt.Errorf("[Withdraw] Withdrawal '%f' was not done from account '%s'", req.Amount, req.ID)
 		a.logger.Error(err.Error())
 		return &models.WithdrawResponse{
 			AccountID:     req.ID,
