@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -83,7 +84,7 @@ func (a *accountsHandler) Withdraw(ctx *fiber.Ctx) error {
 	return utils.NewSuccess(ctx, successResp)
 }
 
-func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdraw, reqHeader *models.WithdrawRequestHeader) (interface{}, error) {
+func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdraw, reqHeader *models.WithdrawRequestHeader) (*models.WithdrawResponse, error) {
 	var done int64
 
 	err := a.postgresDB.Db.QueryRow(
@@ -107,7 +108,8 @@ func (a *accountsHandler) handleWithdraw(ctx context.Context, req *models.Withdr
 	}
 
 	if done == 0 {
-		a.logger.Error(fmt.Sprintf("[Withdraw] Withdrawal '%f' was not done from account '%s'", req.Amount, req.ID))
+		err = errors.New(fmt.Sprintf("[Withdraw] Withdrawal '%f' was not done from account '%s'", req.Amount, req.ID))
+		a.logger.Error(err.Error())
 		return &models.WithdrawResponse{
 			AccountID:     req.ID,
 			Amount:        req.Amount,
