@@ -154,11 +154,11 @@ func (a *accountsHandler) handleCreateAccounts(ctx context.Context, accReq *mode
 				a.logger.Error(fmt.Sprintf("[handleCreateAccounts] account '%s' already exists : %v", argsList[i]["accountid"], err))
 				continue
 			}
-			return argsList, fmt.Errorf("unable to insert row for account '%s' : %v", argsList[i]["accountid"], err)
+			return nil, fmt.Errorf("unable to insert row for account '%s' : %v", argsList[i]["accountid"], err)
 		}
 	}
 
 	a.logger.Info(fmt.Sprintf("[handleCreateAccounts] successfully created . %+v", argsList))
 
-	return argsList, results.Close()
+	return nil, results.Close()
 }
