@@ -41,6 +41,9 @@ jobs:
   code_coverage:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.24.2' ]
     needs: unit_tests
     permissions:
       contents: read
