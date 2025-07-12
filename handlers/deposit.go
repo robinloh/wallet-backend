@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -129,7 +128,7 @@ func (a *accountsHandler) handleDeposit(ctx context.Context, req *models.Deposit
 	}
 
 	if done == 0 {
-		err = errors.New(fmt.Sprintf("[%s] Depositing '%f' was not done from account '%s'", depositOp, req.Amount, req.ID))
+		err = fmt.Errorf("[%s] Depositing '%f' was not done from account '%s'", depositOp, req.Amount, req.ID)
 		a.logger.Error(err.Error())
 		return &models.DepositResponse{
 			AccountID:     req.ID,
