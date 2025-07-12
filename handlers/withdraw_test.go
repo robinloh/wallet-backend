@@ -229,7 +229,7 @@ func Test_accountsHandler_Withdraw(t *testing.T) {
 						database.INSERT_ACCOUNTS_QUERY,
 						pgx.NamedArgs{
 							"id":      "d6f85c9a-44c1-11f0-b7d1-5234096af7c1",
-							"balance": 0.00,
+							"balance": 100.00,
 						},
 					).Scan()
 					return db
@@ -820,7 +820,7 @@ func Test_accountsHandler_handleWithdraw(t *testing.T) {
 						database.INSERT_ACCOUNTS_QUERY,
 						pgx.NamedArgs{
 							"id":      "c9f27a37-4492-11f0-8f4f-bac11744a8ec", // Different account ID
-							"balance": 0.00,
+							"balance": 100.00,
 						},
 					).Scan()
 					return db
