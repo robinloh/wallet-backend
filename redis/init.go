@@ -30,7 +30,7 @@ func ConnectRedis(logger *slog.Logger) *Redis {
 		redisInstance = &Redis{
 			RedisPool: &redis.Pool{
 				Dial: func() (redis.Conn, error) {
-					conn, err := redis.Dial("tcp", fmt.Sprintf(":%s", redisPort))
+					conn, err := redis.Dial("tcp", fmt.Sprintf("redis:%s", redisPort))
 					if err != nil {
 						return nil, err
 					}

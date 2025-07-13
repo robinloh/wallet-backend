@@ -160,5 +160,5 @@ func (a *accountsHandler) handleCreateAccounts(ctx context.Context, accReq *mode
 
 	a.logger.Info(fmt.Sprintf("[handleCreateAccounts] successfully created . %+v", argsList))
 
-	return nil, results.Close()
+	return argsList, results.Close()
 }
