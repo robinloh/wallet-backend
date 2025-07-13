@@ -45,11 +45,11 @@ func Test_accountsHandler_CreateAccounts(t *testing.T) {
 					return database.ConnectDb(context.Background())
 				}(),
 				redis: func() *redis.Redis {
-					_, err := redis.SetupTestRedis(t)
+					r, err := redis.SetupTestRedis(t)
 					if err != nil {
 						t.Fatalf("Failed to setup test Redis : %+v", err)
 					}
-					return redis.ConnectRedis(slog.Default())
+					return r.Redis
 				}(),
 			},
 			args: args{
