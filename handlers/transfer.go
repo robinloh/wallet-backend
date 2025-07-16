@@ -126,14 +126,14 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 	).Scan(&withdrawalDone)
 
 	if withdrawalErr != nil {
-		a.logger.Error(fmt.Sprintf("[%s] Error withdrawing from account '%s' : %+v", transferOp, req.From, err))
+		a.logger.Error(fmt.Sprintf("[%s] Error withdrawing from account '%s' : %+v", transferOp, req.From, withdrawalErr))
 		return &models.TransferResponse{
 			From:          req.From,
 			To:            req.To,
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
 			TransactionID: reqHeader.IdempotencyKey,
-		}, err
+		}, withdrawalErr
 	}
 
 	if withdrawalDone == 0 {
@@ -143,13 +143,6 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 		if err != nil {
 			a.logger.Error(fmt.Sprintf("[%s] Error committing database transaction '%s' : %+v", transferOp, reqHeader.IdempotencyKey, err))
 			_ = tx.Rollback(ctx)
-			return &models.TransferResponse{
-				From:          req.From,
-				To:            req.To,
-				Amount:        req.Amount,
-				Status:        utils.FAILED,
-				TransactionID: reqHeader.IdempotencyKey,
-			}, err
 		}
 
 		return &models.TransferResponse{
@@ -194,7 +187,7 @@ func (a *accountsHandler) handleTransfer(ctx context.Context, req *models.Transf
 			Amount:        req.Amount,
 			Status:        utils.FAILED,
 			TransactionID: reqHeader.IdempotencyKey,
-		}, err
+		}, depositErr
 	}
 
 	if depositDone == 0 {
