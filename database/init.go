@@ -18,8 +18,17 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
+type PgxInterface interface {
+	Close(context.Context) error
+	Begin(context.Context) (pgx.Tx, error)
+	BeginTx(context.Context, pgx.TxOptions) (pgx.Tx, error)
+	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
+	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...interface{}) pgx.Row
+}
+
 type Postgres struct {
-	Db *pgx.Conn
+	Db PgxInterface
 }
 
 var (

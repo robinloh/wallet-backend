@@ -39,7 +39,7 @@ const (
 
 	WITHDRAW_QUERY = `
 	WITH accs AS (
-		UPDATE accounts SET balance = balance - $2 WHERE id = $1 AND balance >= $2
+		UPDATE accounts SET balance = balance - $2 WHERE id = $1 AND $2 > 0.00 AND balance >= $2
 		RETURNING *
 	), txns AS (
 		INSERT INTO transactions (id, account_id, amount, txntype, sender_id, receiver_id, status) 

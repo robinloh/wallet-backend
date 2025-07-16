@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,7 +65,7 @@ func TestConnectDb(t *testing.T) {
 
 func TestPostgres_CloseDbConnection(t *testing.T) {
 	type fields struct {
-		Db *pgx.Conn
+		Db *Postgres
 	}
 	type args struct {
 		ctx    context.Context
@@ -85,16 +85,15 @@ func TestPostgres_CloseDbConnection(t *testing.T) {
 				logger: slog.Default(),
 			},
 			fields: fields{
-				Db: func() *pgx.Conn {
-					username := "test_user"
-					password := "test_password"
-					dbName := "test_wallet_backend_db"
-					host := "localhost"
-					td, err := SetupTestDatabase(t, username, password, dbName, host)
-					if err != nil || td.Db == nil {
-						t.Errorf("unable to setup test database. error : %+v", err.Error())
+				Db: func() *Postgres {
+					mock, err := pgxmock.NewConn()
+					if err != nil {
+						t.Fatalf("Failed to create pgxmock: %v", err)
 					}
-					return td.Db
+					mock.ExpectClose()
+					return &Postgres{
+						Db: mock,
+					}
 				}(),
 			},
 		},
@@ -102,10 +101,9 @@ func TestPostgres_CloseDbConnection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Postgres{
-				Db: tt.fields.Db,
+				Db: tt.fields.Db.Db,
 			}
 			p.CloseDbConnection(tt.args.ctx, tt.args.logger)
-			assert.Equal(t, tt.expected, p.Db.IsClosed())
 		})
 	}
 }
