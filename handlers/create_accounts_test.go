@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	redis2 "github.com/gomodule/redigo/redis"
@@ -158,6 +159,129 @@ func Test_accountsHandler_CreateAccounts(t *testing.T) {
 							},
 						},
 					}
+				}(),
+			},
+			args: args{
+				ctx: func() *fiber.Ctx {
+					ctx := fiber.New().AcquireCtx(&fasthttp.RequestCtx{})
+					ctx.Request().Header.Set("Idempotency-Key", "123e4567-e89b-12d3-a456-426614174000")
+					ctx.Request().Header.SetContentType("application/json")
+					ctx.Request().SetBody([]byte(`{"count": 2}`))
+					return ctx
+				}(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "handle multiple requests - successful concurrent request",
+			fields: fields{
+				logger: slog.Default(),
+				postgresDB: func() *database.Postgres {
+					_, err := database.SetupTestDatabase(t, "test_user", "test_password", "test_wallet_backend_db", "localhost")
+					if err != nil {
+						t.Fatalf("failed to setup test database : %+v", err)
+					}
+					db := database.ConnectDb(context.Background())
+					return db
+				}(),
+				redis: func() *redis.Redis {
+					r, err := redis.SetupTestRedis(t)
+					if err != nil {
+						t.Fatalf("Failed to setup test Redis : %+v", err)
+					}
+					go func() {
+						redisConn := r.Redis.RedisPool.Get()
+						defer func(redisConn redis2.Conn) {
+							_ = redisConn.Close()
+						}(redisConn)
+
+						redisKey := fmt.Sprintf("%s_%s", "123e4567-e89b-12d3-a456-426614174000", createAccountsOp)
+						_, _ = r.Redis.Acquire(redisConn, redisKey)
+
+						// Publish the result after a short delay
+						time.Sleep(2500 * time.Millisecond)
+						resp := fiber.Map{
+							"accounts": &models.AccountResponse{
+								ID:      "d6f85c9a-44c1-11f0-b7d1-5234096af7c1",
+								Balance: "0",
+							},
+							"success": true,
+						}
+						_ = r.Redis.Publish(redisConn, redisKey, resp)
+						_ = r.Redis.Release(redisConn, redisKey, true)
+					}()
+
+					return r.Redis
+				}(),
+			},
+			args: args{
+				ctx: func() *fiber.Ctx {
+					ctx := fiber.New().AcquireCtx(&fasthttp.RequestCtx{})
+					ctx.Request().Header.Set("Idempotency-Key", "123e4567-e89b-12d3-a456-426614174000")
+					ctx.Request().Header.SetContentType("application/json")
+					ctx.Request().SetBody([]byte(`{"count": 1}`))
+					return ctx
+				}(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "handle multiple requests - timeout waiting for response",
+			fields: fields{
+				logger: slog.Default(),
+				postgresDB: func() *database.Postgres {
+					_, err := database.SetupTestDatabase(t, "test_user", "test_password", "test_wallet_backend_db", "localhost")
+					if err != nil {
+						t.Fatalf("failed to setup test database : %+v", err)
+					}
+					return database.ConnectDb(context.Background())
+				}(),
+				redis: func() *redis.Redis {
+					r, err := redis.SetupTestRedis(t)
+					if err != nil {
+						t.Fatalf("Failed to setup test Redis : %+v", err)
+					}
+					// Simulate a request that has acquired the lock but never publishes
+					redisConn := r.Redis.RedisPool.Get()
+					redisKey := fmt.Sprintf("%s_%s", "123e4567-e89b-12d3-a456-426614174002", createAccountsOp)
+					_, _ = r.Redis.Acquire(redisConn, redisKey)
+					return r.Redis
+				}(),
+			},
+			args: args{
+				ctx: func() *fiber.Ctx {
+					ctx := fiber.New().AcquireCtx(&fasthttp.RequestCtx{})
+					ctx.Request().Header.Set("Idempotency-Key", "123e4567-e89b-12d3-a456-426614174002")
+					ctx.Request().Header.SetContentType("application/json")
+					ctx.Request().SetBody([]byte(`{"count": 2}`))
+					return ctx
+				}(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "database error",
+			fields: fields{
+				logger: slog.Default(),
+				postgresDB: func() *database.Postgres {
+					_, err := database.SetupTestDatabase(t, "test_user", "test_password", "test_wallet_backend_db", "localhost")
+					if err != nil {
+						t.Fatalf("failed to setup test database : %+v", err)
+					}
+					db := database.ConnectDb(context.Background())
+					// Simulate database error by closing the connection
+					err = db.Db.Close(context.Background())
+					if err != nil {
+						t.Fatalf("failed to close database connection : %+v", err)
+					}
+					return db
+				}(),
+				redis: func() *redis.Redis {
+					r, err := redis.SetupTestRedis(t)
+					if err != nil {
+						t.Fatalf("Failed to setup test Redis : %+v", err)
+					}
+					return r.Redis
 				}(),
 			},
 			args: args{
